@@ -32,7 +32,14 @@ public class ProfilesManager {
 
     static ProfilesManager instance;
 
+    /**
+     * Value meaning "this PC deliberately uses the global settings". A PC with no entry at
+     * all is a different state: it doesn't touch the active profile.
+     */
+    public static final String BINDING_NONE = "";
+
     private final Map<UUID, SettingsProfile> profiles = new LinkedHashMap<>();
+    private final Map<String, String> pcBindings = new LinkedHashMap<>();
     private UUID activeProfileId;
     private final List<ProfileChangeListener> listeners = new ArrayList<>();
     private Context appContext; // Application context for auto-save
@@ -84,6 +91,12 @@ public class ProfilesManager {
                         profiles.put(p.getUuid(), p);
                     }
                     activeProfileId = data.activeProfileId;
+
+                    // Absent in files written before per-PC bindings existed
+                    pcBindings.clear();
+                    if (data.pcBindings != null) {
+                        pcBindings.putAll(data.pcBindings);
+                    }
                 }
             } catch (IOException e) {
                 LimeLog.warning("ArtemisProfile: Failed to load profiles from file:" + e);
@@ -115,6 +128,7 @@ public class ProfilesManager {
                 ProfilesData data = new ProfilesData();
                 data.profiles = new ArrayList<>(profiles.values());
                 data.activeProfileId = activeProfileId;
+                data.pcBindings = new LinkedHashMap<>(pcBindings);
                 gson.toJson(data, writer);
             } catch (IOException e) {
                 LimeLog.warning("ArtemisProfile: Failed to save profiles to file:" + e);
@@ -151,6 +165,9 @@ public class ProfilesManager {
         if (uuid.equals(activeProfileId)) {
             activeProfileId = null;
         }
+        // Drop any PC bound to the profile we just removed, so it goes back to unassigned
+        // instead of pointing at something that no longer exists
+        pcBindings.values().removeAll(java.util.Collections.singleton(uuid.toString()));
         notifyListeners();
         saveIfPossible();
     }
@@ -171,6 +188,87 @@ public class ProfilesManager {
         return active == null ? "" : active.getName();
     }
 
+    /**
+     * Returns the raw binding for a PC, or null when the PC has no assignment at all.
+     * A {@link #BINDING_NONE} value means the PC deliberately uses the global settings.
+     */
+    public String getPcBinding(String pcUuid) {
+        if (pcUuid == null || pcUuid.isEmpty()) {
+            return null;
+        }
+        return pcBindings.get(pcUuid);
+    }
+
+    /** Binds a PC to a profile. A null profileUuid means "use the global settings". */
+    public void bindPc(String pcUuid, UUID profileUuid) {
+        if (pcUuid == null || pcUuid.isEmpty()) {
+            return;
+        }
+        pcBindings.put(pcUuid, profileUuid == null ? BINDING_NONE : profileUuid.toString());
+        saveIfPossible();
+    }
+
+    /** Removes a PC's assignment, so using it no longer touches the active profile. */
+    public void unbindPc(String pcUuid) {
+        if (pcUuid == null || pcUuid.isEmpty()) {
+            return;
+        }
+        if (pcBindings.remove(pcUuid) != null) {
+            saveIfPossible();
+        }
+    }
+
+    /**
+     * Activates the profile bound to this PC, if any.
+     *
+     * Runs on every game launch, so it must stay cheap: when the wanted profile is already
+     * active it returns without writing profiles.json or notifying listeners. Never throws
+     * and never blocks a launch - on any problem it leaves the active profile alone.
+     *
+     * @return true when the active profile changed, meaning cached preferences must be re-read
+     */
+    public boolean applyProfileForPc(String pcUuid) {
+        try {
+            if (pcUuid == null || pcUuid.isEmpty()) {
+                return false;
+            }
+
+            String binding = pcBindings.get(pcUuid);
+            if (binding == null) {
+                // Unassigned: leave whatever profile is active alone
+                return false;
+            }
+
+            UUID wanted = null;
+            if (!BINDING_NONE.equals(binding)) {
+                try {
+                    wanted = UUID.fromString(binding);
+                } catch (IllegalArgumentException e) {
+                    LimeLog.warning("ArtemisProfile: Unparseable binding for PC " + pcUuid);
+                    unbindPc(pcUuid);
+                    return false;
+                }
+                if (!profiles.containsKey(wanted)) {
+                    // The profile was deleted behind our back; treat it as unassigned
+                    LimeLog.info("ArtemisProfile: Dropping stale binding for PC " + pcUuid);
+                    unbindPc(pcUuid);
+                    return false;
+                }
+            }
+
+            if (wanted == null ? activeProfileId == null : wanted.equals(activeProfileId)) {
+                return false;
+            }
+
+            setActive(wanted);
+            return true;
+        } catch (Exception e) {
+            // Applying a binding must never stop a game from launching
+            LimeLog.warning("ArtemisProfile: Failed to apply profile for PC:" + e);
+            return false;
+        }
+    }
+
     public void addListener(ProfileChangeListener listener) {
         listeners.add(listener);
     }
@@ -188,6 +286,7 @@ public class ProfilesManager {
     private static class ProfilesData {
         List<SettingsProfile> profiles;
         UUID activeProfileId;
+        Map<String, String> pcBindings;
     }
 
     public interface ProfileChangeListener {
