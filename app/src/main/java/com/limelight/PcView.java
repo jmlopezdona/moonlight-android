@@ -22,6 +22,7 @@ import com.limelight.preferences.GlPreferences;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.preferences.StreamSettings;
 import com.limelight.profiles.ProfilesManager;
+import com.limelight.profiles.SettingsProfile;
 import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
 import com.limelight.utils.Dialog;
@@ -32,6 +33,7 @@ import com.limelight.utils.UiHelper;
 
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -69,6 +71,8 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+
+import java.util.List;
 
 public class PcView extends AppCompatActivity implements AdapterFragmentCallbacks {
     private RelativeLayout noPcFoundLayout;
@@ -136,6 +140,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     private final static int GAMESTREAM_EOL_ID = 11;
     private final static int OPEN_MANAGEMENT_PAGE_ID = 20;
     private final static int PAIR_ID_OTP = 21;
+    private final static int PROFILE_ID = 22;
 
     private void initializeViews() {
         setContentView(R.layout.activity_pc_view);
@@ -422,6 +427,14 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                 break;
         }
 
+        // Show the bound profile here so it can be checked without opening the dialog for
+        // every PC. Unassigned PCs get the plain header they always had.
+        String boundProfileName = getBoundProfileName(computer.details.uuid);
+        if (boundProfileName != null) {
+            headerTitle += " - " + getResources().getString(
+                    R.string.pcview_menu_header_profile, boundProfileName);
+        }
+
         menu.setHeaderTitle(headerTitle);
 
         // Inflate the context menu
@@ -457,6 +470,91 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         menu.add(Menu.NONE, TEST_NETWORK_ID, 5, getResources().getString(R.string.pcview_menu_test_network));
         menu.add(Menu.NONE, DELETE_ID, 6, getResources().getString(R.string.pcview_menu_delete_pc));
         menu.add(Menu.NONE, VIEW_DETAILS_ID, 7,  getResources().getString(R.string.pcview_menu_details));
+
+        // Outside the state blocks above on purpose: a PC's profile can be set while it is
+        // offline or not yet paired.
+        menu.add(Menu.NONE, PROFILE_ID, 8, getResources().getString(R.string.pcview_menu_settings_profile));
+    }
+
+    /**
+     * Display name of the profile bound to this PC, the "global settings" label when it is
+     * bound to none, or null when the PC has no assignment at all.
+     */
+    private String getBoundProfileName(String pcUuid) {
+        String binding = ProfilesManager.getInstance().getPcBinding(pcUuid);
+        if (binding == null) {
+            return null;
+        }
+        if (ProfilesManager.BINDING_NONE.equals(binding)) {
+            return getResources().getString(R.string.pcview_profile_none);
+        }
+        for (SettingsProfile profile : ProfilesManager.getInstance().getProfiles()) {
+            if (profile.getUuid().toString().equals(binding)) {
+                return profile.getName();
+            }
+        }
+        // Stale binding: applyProfileForPc() clears these when the PC is next used
+        return null;
+    }
+
+    private void showProfileSelectionDialog(final ComputerDetails details) {
+        final List<SettingsProfile> profiles = ProfilesManager.getInstance().getProfiles();
+
+        if (profiles.isEmpty()) {
+            Toast.makeText(this, R.string.profile_manager_no_profiles_yet, Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, ProfilesActivity.class));
+            return;
+        }
+
+        // Two fixed entries first, then one per profile
+        final String[] labels = new String[profiles.size() + 2];
+        labels[0] = getResources().getString(R.string.pcview_profile_unassigned);
+        labels[1] = getResources().getString(R.string.pcview_profile_none);
+        for (int i = 0; i < profiles.size(); i++) {
+            labels[i + 2] = profiles.get(i).getName();
+        }
+
+        String binding = ProfilesManager.getInstance().getPcBinding(details.uuid);
+        int checked = 0;
+        if (ProfilesManager.BINDING_NONE.equals(binding)) {
+            checked = 1;
+        }
+        else if (binding != null) {
+            for (int i = 0; i < profiles.size(); i++) {
+                if (profiles.get(i).getUuid().toString().equals(binding)) {
+                    checked = i + 2;
+                    break;
+                }
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(getResources().getString(R.string.pcview_profile_dialog_title, details.name))
+                .setSingleChoiceItems(labels, checked, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String message;
+                        if (which == 0) {
+                            ProfilesManager.getInstance().unbindPc(details.uuid);
+                            message = getResources().getString(R.string.pcview_profile_unbound, details.name);
+                        }
+                        else if (which == 1) {
+                            ProfilesManager.getInstance().bindPc(details.uuid, null);
+                            message = getResources().getString(R.string.pcview_profile_none_bound, details.name);
+                        }
+                        else {
+                            SettingsProfile chosen = profiles.get(which - 2);
+                            ProfilesManager.getInstance().bindPc(details.uuid, chosen.getUuid());
+                            message = getResources().getString(R.string.pcview_profile_bound,
+                                    chosen.getName(), details.name);
+                        }
+
+                        dialog.dismiss();
+                        Toast.makeText(PcView.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     @Override
@@ -804,6 +902,10 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                 ServerHelper.doNetworkTest(PcView.this);
                 return true;
 
+            case PROFILE_ID:
+                showProfileSelectionDialog(computer.details);
+                return true;
+
             case GAMESTREAM_EOL_ID:
                 HelpLauncher.launchGameStreamEolFaq(PcView.this);
                 return true;
@@ -831,6 +933,9 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                 .edit()
                 .remove(details.uuid)
                 .apply();
+
+        // Drop the profile assignment too, so re-pairing this PC starts unassigned
+        ProfilesManager.getInstance().unbindPc(details.uuid);
 
         for (int i = 0; i < pcGridAdapter.getCount(); i++) {
             ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(i);

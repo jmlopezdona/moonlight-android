@@ -33,6 +33,14 @@
     <string name="pcview_menu_delete_pc">Delete PC</string>
     <string name="pcview_menu_test_network">Test Network Connection</string>
     <string name="pcview_menu_details">View Details</string>
+    <string name="pcview_menu_settings_profile">Settings profile</string>
+    <string name="pcview_profile_dialog_title">Settings profile for %s</string>
+    <string name="pcview_profile_unassigned">Unassigned (use active profile)</string>
+    <string name="pcview_profile_none">None — global settings</string>
+    <string name="pcview_profile_bound">\'%1$s\' will be used for %2$s</string>
+    <string name="pcview_profile_unbound">%s will use the active profile</string>
+    <string name="pcview_profile_none_bound">%s will use the global settings</string>
+    <string name="pcview_menu_header_profile">profile: %s</string>
     <string name="pcview_menu_eol">NVIDIA GameStream End-of-Service</string>
     <string name="pcview_menu_open_management_page">Go to Server Config</string>
     <string name="pcview_error_no_management_url">Cannot open server config page, cannot find server address.</string>
