@@ -62,7 +62,17 @@ public class EditProfileActivity extends AppCompatActivity {
 
             if (currentProfile != null) {
                 setTitle(getString(R.string.profile_manager_edit_profile) + currentProfile.getName());
-                inMemoryPrefs = new InMemorySharedPreferences(currentProfile.getOptions());
+
+                // Start from the global prefs and lay the profile's options on top, so every
+                // preference shows the value this profile would actually apply. A profile only
+                // stores the keys it overrides, so seeding from its options alone would show
+                // framework defaults for everything it leaves to the globals.
+                Map<String, Object> seed = new HashMap<>(
+                        PreferenceManager.getDefaultSharedPreferences(this).getAll());
+                if (currentProfile.getOptions() != null) {
+                    seed.putAll(currentProfile.getOptions());
+                }
+                inMemoryPrefs = new InMemorySharedPreferences(seed);
             } else {
                 Toast.makeText(this, R.string.profile_manager_profile_not_found, Toast.LENGTH_SHORT).show();
                 finish();
@@ -117,8 +127,12 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void saveProfile() {
-        // Get the profile options from our in-memory prefs
-        Map<String, Object> profileOptions = new HashMap<>(inMemoryPrefs.getAll());
+        // Store only what this profile changes. Keys we leave out fall through to the
+        // global prefs when the profile is active, so a later change to a global setting
+        // still reaches every profile that doesn't override it.
+        Map<String, Object> profileOptions = ProfilePreferenceFragment.diff(
+                inMemoryPrefs.getAll(),
+                PreferenceManager.getDefaultSharedPreferences(this).getAll());
 
         String displayName;
 
@@ -236,7 +250,7 @@ public class EditProfileActivity extends AppCompatActivity {
                 Object v = entry.getValue();
                 if (newPrefs.containsKey(k)) {
                     Object def = newPrefs.get(k);
-                    if (v == null || !v.equals(def)) {
+                    if (v == null || !sameValue(v, def)) {
                         patch.put(k, v);
                     }
                 } else {
@@ -245,6 +259,18 @@ public class EditProfileActivity extends AppCompatActivity {
                 }
             }
             return patch;
+        }
+
+        /**
+         * Gson deserializes a profile's numbers as Double, so a value read back from
+         * profiles.json never equals() the Integer the global prefs hold for the same key.
+         * Compare numbers by value so we don't report a difference that isn't one.
+         */
+        private static boolean sameValue(Object a, Object b) {
+            if (a instanceof Number && b instanceof Number) {
+                return ((Number) a).doubleValue() == ((Number) b).doubleValue();
+            }
+            return a != null && a.equals(b);
         }
 
         @Override
