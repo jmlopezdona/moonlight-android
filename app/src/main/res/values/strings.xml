@@ -41,6 +41,7 @@
     <string name="pcview_profile_unbound">%s will use the active profile</string>
     <string name="pcview_profile_none_bound">%s will use the global settings</string>
     <string name="pcview_menu_header_profile">profile: %s</string>
+    <string name="settings_profile_override_notice">These are the global settings. The active profile \'%s\' overrides some of them — edit the profile to change what it covers.</string>
     <string name="pcview_menu_eol">NVIDIA GameStream End-of-Service</string>
     <string name="pcview_menu_open_management_page">Go to Server Config</string>
     <string name="pcview_error_no_management_url">Cannot open server config page, cannot find server address.</string>

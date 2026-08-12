@@ -39,6 +39,9 @@ import android.view.DisplayCutout;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
+
+import com.limelight.profiles.ProfilesManager;
 import android.view.WindowInsets;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -99,7 +102,31 @@ public class StreamSettings extends AppCompatActivity {
 
         setContentView(R.layout.activity_stream_settings);
 
+        showProfileOverrideNotice();
+
 //        UiHelper.notifyNewRootView(this);
+    }
+
+    /**
+     * This screen reads and writes the global preferences on purpose. With a profile active
+     * those values are shadowed, so a change made here can look like it did nothing: say so
+     * instead of leaving the user to work it out.
+     */
+    private void showProfileOverrideNotice() {
+        TextView notice = findViewById(R.id.profileOverrideNotice);
+        if (notice == null) {
+            return;
+        }
+
+        String activeProfileName = ProfilesManager.getInstance().getActiveName();
+        if (activeProfileName.isEmpty()) {
+            notice.setVisibility(View.GONE);
+            return;
+        }
+
+        notice.setText(getResources().getString(
+                R.string.settings_profile_override_notice, activeProfileName));
+        notice.setVisibility(View.VISIBLE);
     }
 
     @Override
