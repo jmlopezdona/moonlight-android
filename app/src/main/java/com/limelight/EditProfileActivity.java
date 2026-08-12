@@ -370,7 +370,10 @@ public class EditProfileActivity extends AppCompatActivity {
         @Override
         public float getFloat(String key, float defValue) {
             Object value = values.get(key);
-            return value instanceof Float ? (Float) value : defValue;
+            if (value instanceof Number) {
+                return ((Number) value).floatValue();
+            }
+            return defValue;
         }
 
         @Override
