@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Instala en la Shield TV el APK ya compilado, con el adb del mismo contenedor.
+# Uso: herramientas/instalar [ip[:puerto]]      (por defecto la Shield del salon)
+#
+# La clave ADB es LA MISMA que usa la app de la tele (~/iptv/api/datos/adbkey),
+# no una nueva: la Shield ya la tiene autorizada desde que esto lo hacia Home
+# Assistant, asi que no hay que aceptar ningun dialogo en la tele. Lo que la
+# Shield autoriza es la clave publica, no quien la presente.
+#
+# Se monta solo el par de ficheros de la clave, y de solo lectura: en esa carpeta
+# esta tambien iptv-canales.yaml, que ES la credencial del proveedor y no pinta
+# nada dentro de un contenedor que compila.
+#
+# Aqui NO hace falta el «--limpio» que si tiene el instalar de la tele: el APK de
+# depuracion de este proyecto lleva applicationIdSuffix ".noirdebug" y se llama
+# «Diana» (app/build.gradle, buildTypes.debug), asi que es OTRO paquete que la
+# Artemis de diario (".noir"). Conviven instalados, no hay conflicto de firma con
+# ella, y los emparejamientos y el profiles.json de la de diario no se tocan. A
+# cambio, «Diana» arranca vacia: hay que emparejar en ella los servidores.
+#
+# La firma de «Diana» consigo misma si importa, y de eso se encarga herramientas/compilar
+# guardando el debug.keystore fuera del contenedor.
+set -euo pipefail
+
+raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+imagen="artemis-compilar"
+cache="${HOME}/.cache/gradle-artemis"
+destino="${1:-192.168.1.33:5555}"
+clave="${SHIELD_ADBKEY:-$HOME/iptv/api/datos/adbkey}"
+abi="${ARTEMIS_ABI:-arm64-v8a}"
+
+# Con splits.abi activo (app/build.gradle) no sale un APK, salen cuatro. El de la
+# Shield TV es el de arm64-v8a (Tegra X1).
+salida="$raiz/app/build/outputs/apk/nonRoot_game/debug"
+apk="$(ls "$salida"/*"$abi"*.apk 2>/dev/null | head -1 || true)"
+
+if [ -z "$apk" ]; then
+  echo "No hay APK de $abi en $salida: lanza herramientas/compilar" >&2
+  [ -d "$salida" ] && { echo "Lo que si hay ahi:" >&2; ls "$salida" >&2; }
+  exit 1
+fi
+[ -f "$clave" ] || { echo "No encuentro la clave ADB en $clave (mira SHIELD_ADBKEY)" >&2; exit 1; }
+
+echo "Instalando $(basename "$apk") en $destino..." >&2
+
+exec docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -e HOME=/gradle \
+  -e ADB_VENDOR_KEYS=/claves/adbkey \
+  -v "$cache:/gradle" \
+  -v "$raiz:/artemis" \
+  -v "$(realpath "$clave"):/claves/adbkey:ro" \
+  -v "$(realpath "$clave").pub:/claves/adbkey.pub:ro" \
+  -w /artemis \
+  "$imagen" \
+  bash -c "adb connect '$destino' \
+    && adb -s '$destino' install -r '${apk#"$raiz/"}'"

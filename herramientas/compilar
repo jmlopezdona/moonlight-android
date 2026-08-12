@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Compila el APK dentro de un contenedor, sin instalar JDK ni SDK ni NDK en la
+# maquina. Uso: herramientas/compilar [tarea de gradle...]
+#
+# Por defecto :app:assembleNonRoot_gameDebug. Ojo con esto: este proyecto tiene
+# dos flavors (nonRoot_game y root) por dos build types, asi que «assembleDebug»
+# no es una tarea, hay que decir QUE variante. La que se usa en casa es
+# nonRoot_game.
+#
+# Otras tareas utiles:
+#   herramientas/compilar :app:testNonRoot_gameDebugUnitTest   los tests (Robolectric)
+#   herramientas/compilar test                                 todos los tests unitarios
+#
+# La imagen se construye sola la primera vez y ya se queda. Lo que Gradle baja
+# --la distribucion y las dependencias-- vive en ~/.cache/gradle-artemis, fuera
+# del contenedor, para que la segunda compilacion no vuelva a bajarlo. Es una
+# cache aparte de la de la app de la tele (~/.cache/gradle-iptv-tele) a
+# proposito: comparten aparato pero no version de SDK, y subir una no debe
+# arrastrar a la otra.
+set -euo pipefail
+
+raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+imagen="artemis-compilar"
+cache="${HOME}/.cache/gradle-artemis"
+mkdir -p "$cache"
+
+# Los submodulos anidados (moonlight-common-c, y enet dentro de el) llevan el
+# codigo C que compila el NDK. Si el arbol se clono sin --recursive, la carpeta
+# esta ahi pero vacia, y lo que sale entonces es un error de ndk-build sobre un
+# fichero que no aparece, que no dice nada de todo esto.
+comun="$raiz/app/src/main/jni/moonlight-core/moonlight-common-c"
+if [ ! -f "$comun/src/Limelight.h" ] || [ ! -f "$comun/enet/include/enet/enet.h" ]; then
+  echo "Faltan los submodulos: $comun esta vacio o incompleto." >&2
+  echo "Arreglalo con:  git submodule update --init --recursive" >&2
+  exit 1
+fi
+
+if ! docker image inspect "$imagen" > /dev/null 2>&1; then
+  echo "Construyendo la imagen $imagen (solo la primera vez, el NDK son un par de GB)..." >&2
+  docker build -t "$imagen" -f "$raiz/Dockerfile.compilar" "$raiz"
+fi
+
+# Con el uid de quien lanza esto, que si no el APK y los intermedios salen de
+# root y luego no hay quien los borre sin sudo.
+#
+# ANDROID_USER_HOME no sobra, y en la app de la tele costo un rato: la clave con
+# la que se firma el APK de depuracion se guarda en «~/.android/debug.keystore»,
+# pero ese «~» no es $HOME --la JVM saca user.home de /etc/passwd, y con este uid
+# le sale /home/ubuntu, que muere con el contenedor--. Sin esto, CADA
+# compilacion firma con una clave nueva y la Shield rechaza la actualizacion con
+# «INSTALL_FAILED_UPDATE_INCOMPATIBLE», que no dice nada de todo esto.
+exec docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -e HOME=/gradle \
+  -e GRADLE_USER_HOME=/gradle \
+  -e ANDROID_USER_HOME=/gradle/.android \
+  -e GRADLE_OPTS=-Duser.home=/gradle \
+  -v "$cache:/gradle" \
+  -v "$raiz:/artemis" \
+  -w /artemis \
+  "$imagen" \
+  ./gradlew --no-daemon "${@:-:app:assembleNonRoot_gameDebug}"

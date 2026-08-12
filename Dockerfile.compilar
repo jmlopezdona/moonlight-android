@@ -1,0 +1,58 @@
+# Entorno para compilar el APK sin instalar nada en la maquina.
+#
+# El servidor de casa no tiene JDK ni SDK ni NDK de Android, asi que ./gradlew no
+# arranca. Aqui esta escrito lo que hace falta y nada mas. El precedente de la
+# casa es la app de la tele (~/iptv/tele/Dockerfile.compilar): esto es lo mismo
+# con SDK 36 y, sobre todo, con el NDK, que alli no hacia falta.
+#
+# Las versiones no son de adorno, salen de app/build.gradle:
+#   ndkVersion "27.0.12077973"  -> la linea del ndk de abajo, EXACTA: si no
+#                                  coincide, Gradle se para y lo dice.
+#   compileSdk = 36             -> platforms;android-36 y build-tools;36.0.0
+# AGP 8.13.0 (build.gradle raiz) pide JDK 17 o superior para correr Gradle,
+# aunque la app compile con source/target 11.
+FROM eclipse-temurin:17-jdk-noble
+
+ENV ANDROID_SDK_ROOT=/opt/android-sdk \
+    DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# El sdkmanager espera vivir en cmdline-tools/latest/: descomprimido tal cual
+# se queda en cmdline-tools/bin y no encuentra el resto del SDK.
+#
+# Es la misma version que usa la app de la tele, que ya esta probada en esta
+# maquina. Si algun dia no encontrase un paquete nuevo, se sube el numero del
+# zip: el sdkmanager solo lee el manifiesto del repositorio, no lleva dentro la
+# lista de paquetes.
+RUN curl -fsSL -o /tmp/tools.zip \
+      https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+    && mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools" \
+    && unzip -q /tmp/tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools" \
+    && mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest" \
+    && rm /tmp/tools.zip
+
+# platform-tools trae ademas el adb con el que se instala en la Shield.
+#
+# El NDK son un par de GB: es lo que hace que esta imagen pese lo que pesa. No
+# hace falta instalar make: ndk-build usa el suyo, que viene en el propio NDK
+# (prebuilt/linux-x86_64/bin/make).
+#
+# OpenSSL no se compila aqui: viene ya compilado y versionado en el arbol, en
+# app/src/main/jni/moonlight-core/openssl/<abi>/lib{crypto,ssl}.a. El
+# build-openssl.sh de al lado no lo lanza Gradle.
+RUN yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null \
+    && "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+         "platform-tools" \
+         "platforms;android-36" \
+         "build-tools;36.0.0" \
+         "ndk;27.0.12077973" > /dev/null
+
+# Que cualquier usuario pueda escribir en el SDK: el contenedor corre con el
+# uid de quien lo lanza --para que el APK no salga de root-- y Gradle toca aqui
+# dentro (por ejemplo al generar el indice de licencias).
+RUN chmod -R a+rwX "$ANDROID_SDK_ROOT"
+
+ENV PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
