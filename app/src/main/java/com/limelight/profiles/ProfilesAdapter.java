@@ -83,6 +83,12 @@ public class ProfilesAdapter extends RecyclerView.Adapter<ProfilesAdapter.Profil
 
         // Also make the whole row clickable to edit
         holder.itemView.setOnClickListener(v -> holder.editProfile.performClick());
+
+        // ...but don't let it take focus, or a D-pad can't reach anything inside it. A
+        // clickable View is focusable by default, and this one spans the full width, so
+        // directional navigation never finds the radio, edit and delete buttons "to the
+        // right" of it: it jumps straight to the next row. Taps are unaffected.
+        holder.itemView.setFocusable(false);
     }
 
     @Override
