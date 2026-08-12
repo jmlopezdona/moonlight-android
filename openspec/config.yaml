@@ -1,0 +1,57 @@
+schema: spec-driven
+
+context: |
+  El cliente con el que se juega en casa: fork propio de **Artemis Android**
+  (antes Moonlight Noir), a su vez fork de Moonlight, cliente de Apollo/Sunshine.
+  Upstream: ClassicOldSong/moonlight-android. `origin` es el fork
+  (git@github-artemis:jmlopezdona/moonlight-android.git, alias del ~/.ssh/config
+  con clave propia). La rama por defecto es `moonlight-noir`, no `master`.
+
+  IDIOMA: todo en español — propuestas, specs, tareas y mensajes de commit. El
+  código y sus comentarios siguen en inglés, como el resto del proyecto.
+
+  QUÉ ES ESTO EN LA CASA:
+  Este cliente es quien habla con el Apollo de cada cuenta de Windows del PC
+  gaming, que monta el repo `~/multiseat`. Reparto de responsabilidades: lo que
+  elige el cliente se toca aquí, y lo que sirve el PC, allí. La resolución, por
+  ejemplo, la elige el cliente — mirar `~/multiseat/CLAUDE.md` («Known
+  Constraints»), donde está medido que un puesto tartamudea a 2160p y va bien de
+  1440p para abajo.
+
+  CÓMO ESTÁ HECHO:
+  - Android nativo, Java, con parte en C bajo `app/src/main/jni` (ndkBuild).
+  - Gradle 8.13, AGP 8.13.0, `compileSdk` 36, `minSdk` 21, `targetSdk` 34,
+    `ndkVersion` 27.0.12077973, `namespace` com.limelight. AGP 8.13 pide JDK 17
+    o superior para correr Gradle, aunque la app compile con source/target 11.
+  - Dos flavors en la dimensión `root`: `nonRoot_game` (applicationId
+    com.limelight, el que se usa) y `root` (com.limelight.root, `maxSdk` 25).
+    Con dos build types cada uno, toda tarea de compilar debe decir *qué*
+    variante: `assembleNonRoot_gameDebug` no es `assembleDebug`.
+  - Dos submódulos anidados: `moonlight-common-c` (fork de ClassicOldSong) y
+    `enet` dentro de él. Si el árbol se reclona sin `--recursive`,
+    `app/src/main/jni/moonlight-core` queda vacío y no compila.
+  - Hay tests unitarios con Robolectric en `app/src/test` (arranque, inflado de
+    layouts, perfiles). No son instrumentados: no hacen falta ni dispositivo ni
+    emulador.
+
+  AQUÍ NO SE COMPILA — TENERLO EN CUENTA AL PLANIFICAR:
+  Este servidor no tiene JDK ni SDK ni NDK de Android; `./gradlew` no arranca.
+  El precedente de la casa para esto es la app de la tele: `~/iptv/tele` se
+  compila dentro de un contenedor (`Dockerfile.compilar`, con `bin/compilar` y
+  `bin/instalar`, que instala por adb). Aquí ese entorno **no existe todavía**,
+  y este proyecto pediría además NDK 27 y SDK 36. Así que:
+  - No des por hecho que una tarea puede compilar o pasar los tests. Si un
+    cambio necesita comprobarse compilando, que la propuesta diga con qué, y si
+    hace falta montar antes el entorno, que sea un paso explícito.
+  - Verificar de verdad es instalar el APK en el aparato desde el que se juega y
+    jugar contra el PC. Eso lo hace una persona, no una tarea automática.
+
+  ES UN FORK, Y ESO MANDA:
+  - El upstream sigue vivo y se traerán sus cambios. Cuanto más pequeño y más
+    localizado sea un cambio propio, menos duele el siguiente merge. Tocar
+    ficheros muy transitados del upstream es un coste a mencionar en la
+    propuesta.
+  - No reescribas el estilo del código ajeno de paso, ni reordenes ficheros que
+    no toca el cambio: se paga en cada conflicto.
+  - Al describir un cambio, distingue si es propio de este fork o si viene de
+    upstream.
