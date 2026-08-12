@@ -391,6 +391,23 @@ presente. Dos consecuencias:
   `AlertDialog.setSingleChoiceItems` es navegable con d-pad. Aun así hay que probarlo
   con el mando, no dando por bueno que funciona porque funcione en un móvil.
 
+  Probarlo mereció la pena: **la lista de perfiles era inservible con mando**, y salió al
+  intentar activar un perfil a mano durante la verificación. `ProfilesAdapter` hace la fila
+  clicable para poder editarla tocándola, y una vista clicable es focusable por defecto;
+  como esa fila ocupa todo el ancho, el `FocusFinder` nunca encuentra sus propios hijos «a
+  la derecha» —exige que el candidato quede fuera del rectángulo de origen— y salta a la
+  fila siguiente. Resultado: el radio de activar, el lápiz y la papelera inalcanzables, y
+  OK disparando siempre el lápiz. Arreglado en su propio commit dejando la fila clicable
+  pero no focusable. Es un bug de upstream, independiente de esta función, y por eso va
+  suelto y es mandable como PR.
+
+  Cómo se comprobó, que sirve para lo que quede: `uiautomator dump` por adb da la
+  jerarquía con `focusable`/`focused`, y `input keyevent DPAD_*` permite navegar sin tocar
+  el mando. Es la forma de verificar foco en la tele sin fiarse de lo que parece en
+  pantalla. Ojo: `ProfilesActivity` no está exportada, así que `am start -n` da
+  `SecurityException`; hay que arrancar por `monkey -c LAUNCHER` y llegar navegando o
+  tocando por coordenadas.
+
 Dos cosas que salieron a favor al mirar el árbol:
 
 - **OpenSSL viene precompilado y versionado** en

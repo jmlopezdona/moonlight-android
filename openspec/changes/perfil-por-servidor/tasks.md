@@ -46,6 +46,17 @@ Rama sugerida: `feature/perfil-por-servidor`. Mensajes de commit en español.
 - [x] 1.10 Documentar el entorno donde toque (`CLAUDE.md` del proyecto o un `README`
       junto a los scripts), incluyendo que este servidor no compila sin esto.
 
+## 1b. Commit aparte — `profiles: dejar la lista de perfiles manejable con el mando`
+
+Bug de upstream descubierto al verificar con el mando: en la lista de perfiles el radio
+de activar, el lápiz y la papelera eran inalcanzables con el d-pad (ver `design.md`,
+decisión 7). Independiente de esta función y mandable suelto como PR.
+
+- [x] 1b.1 En `ProfilesAdapter`, dejar la fila clicable pero **no** focusable, para que sus
+      hijos pasen a ser los destinos de foco. Los taps no cambian.
+- [x] 1b.2 Verificar en la Shield por adb con `uiautomator dump`: un `DPAD_DOWN` debe caer
+      en el radio y `DPAD_RIGHT` recorrer radio → lápiz → papelera.
+
 ## 2. Commit previo — `profiles: leer los decimales del perfil como Number`
 
 Consistencia defensiva, **no** un arreglo de un fallo observable: las tres preferencias
