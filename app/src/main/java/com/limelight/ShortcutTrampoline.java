@@ -23,6 +23,7 @@ import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.nvstream.wol.WakeOnLanSender;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.profiles.ProfilesManager;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
@@ -426,6 +427,13 @@ public class ShortcutTrampoline extends AppCompatActivity {
         }
 
         uuidString = hostUUID;
+
+        // prefConfig was read at the top of onCreate, before we knew which PC this was.
+        // Now that we do, apply its profile and re-read, because the value below is passed
+        // to createStartIntent().
+        if (ProfilesManager.getInstance().applyProfileForPc(hostUUID)) {
+            prefConfig = PreferenceConfiguration.readPreferences(this);
+        }
 
         // Set the AppView UUID intent
         setIntent(new Intent(getIntent()).putExtra(AppView.UUID_EXTRA, uuidString));

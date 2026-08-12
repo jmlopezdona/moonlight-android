@@ -23,6 +23,7 @@ import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.profiles.ProfilesManager;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -94,6 +95,10 @@ public class ServerHelper {
                                            ComputerManagerService.ComputerManagerBinder managerBinder,
                                            boolean withVDisplay) {
         Intent gameIntent = null;
+        // Every launch path ends up here, so this is where the PC's own profile has to win.
+        // It must run before the preferences are read, because prefConfig decides about the
+        // secondary display a few lines down.
+        ProfilesManager.getInstance().applyProfileForPc(computer.uuid);
         PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(parent);
         // Try to add secondary DisplayContext if supported and connected
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && prefConfig.enableFullExDisplay && getSecondaryDisplay(parent) != null) {

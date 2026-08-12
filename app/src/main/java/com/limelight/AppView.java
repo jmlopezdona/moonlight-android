@@ -398,6 +398,13 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         inForeground = true;
         startComputerUpdates();
 
+        // Apply this PC's own profile here rather than in onCreate: onCreate doesn't run
+        // again when we come back from streaming another PC, which would leave the button
+        // below showing that other PC's profile.
+        if (ProfilesManager.getInstance().applyProfileForPc(uuidString)) {
+            this.prefConfig = PreferenceConfiguration.readPreferences(this);
+        }
+
         ExtendedFloatingActionButton profilesButton = findViewById(R.id.profilesButton);
         // User report Samsung and Xiaomi devices have this problem
         // Why just these two brands have the most problems?
