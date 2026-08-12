@@ -72,6 +72,23 @@ pueden ejecutar aquí.
 - No se persigue reproducibilidad de la compilación: el contenedor es para poder
   compilar y probar en casa, no un artefacto de release.
 
+### Por qué NO las tres ideas que primero se le ocurren a uno
+
+Rescatado del análisis inicial, porque son las que se van a volver a proponer:
+
+- **Perfil por ruta (local vs remota) del mismo servidor.** Es la que más apetece —bajar
+  calidad al salir de casa— y la que peor sale con lo que hay: `computer.activeAddress` se
+  resuelve por sondeo y no siempre refleja la ruta que acabará usando el stream, así que
+  aplicaría el perfil equivocado **justo en el caso que importa**. Pide antes un indicador
+  fiable de «estoy en la LAN», que no existe hoy.
+- **Perfil por app.** Multiplica la UI (una entrada en el menú de cada juego) y el modelo
+  (dos niveles de precedencia). Se puede montar encima de esta base sin rehacerla, así que
+  no hay prisa.
+- **Activación temporal, restaurada al salir del stream.** `Game` puede morir sin pasar por
+  `onDestroy` y dejaría el perfil activo en un estado incoherente. La activación
+  persistente es más simple y además se ve: el indicador de perfil la muestra. Está como
+  requisito en el spec, con un escenario para el proceso muerto a media partida.
+
 ## Decisions
 
 ### 1. El perfil guarda el diff, no la fotografía (commit 0)
