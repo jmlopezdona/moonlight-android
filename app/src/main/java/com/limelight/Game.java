@@ -4197,7 +4197,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         updatePerformanceOverlayVisibility();
     }
 
-    // Select+D-pad Up asks for the full overlay, Select+D-pad Down for the lite one.
+    // Start+D-pad Up asks for the full overlay, Start+D-pad Down for the lite one.
     // Requesting the mode that's already on screen hides the overlay instead.
     @Override
     public void togglePerformanceOverlay(boolean lite) {

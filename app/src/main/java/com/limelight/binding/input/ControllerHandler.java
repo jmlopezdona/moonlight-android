@@ -2709,17 +2709,19 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         return true;
     }
 
-    // Select+D-pad Up toggles the full performance overlay and Select+D-pad Down toggles the
-    // lite one. We swallow the D-pad press so the game doesn't see it, but leave Select alone
-    // since the user is holding it anyway. Clearing the D-pad flags is safe because both the
-    // key and hat paths rebuild them from scratch on every input report.
+    // Start+D-pad Up toggles the full performance overlay and Start+D-pad Down toggles the
+    // lite one. We swallow the D-pad press so the game doesn't see it, but leave Start alone:
+    // handleButtonUp checks PLAY_FLAG to tell a real Start release from a spurious one, so
+    // clearing it here would break the mouse emulation and game menu gestures. Clearing the
+    // D-pad flags is safe because both the key and hat paths rebuild them from scratch on
+    // every input report.
     private void handlePerfOverlayCombo(InputDeviceContext context) {
         boolean liteRequested;
 
-        if (context.inputMap == (ControllerPacket.BACK_FLAG | ControllerPacket.UP_FLAG)) {
+        if (context.inputMap == (ControllerPacket.PLAY_FLAG | ControllerPacket.UP_FLAG)) {
             liteRequested = false;
         }
-        else if (context.inputMap == (ControllerPacket.BACK_FLAG | ControllerPacket.DOWN_FLAG)) {
+        else if (context.inputMap == (ControllerPacket.PLAY_FLAG | ControllerPacket.DOWN_FLAG)) {
             liteRequested = true;
         }
         else {
@@ -3220,7 +3222,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public long startUpTime = 0;
         public boolean backMenuPending = false;
 
-        // Set while a Select+D-pad performance overlay combo is held down, so we only
+        // Set while a Start+D-pad performance overlay combo is held down, so we only
         // toggle the overlay once per press instead of on every input report.
         public boolean perfOverlayComboActive = false;
 
