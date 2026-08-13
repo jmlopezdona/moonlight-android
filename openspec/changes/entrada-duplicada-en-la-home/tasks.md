@@ -32,5 +32,5 @@
 
 ## 6. Cerrar
 
-- [ ] 6.1 Commit en la rama `moonlight-noir`, mensaje en español, distinguiendo que el arreglo es propio del fork y no viene de upstream.
+- [x] 6.1 Commit en la rama `moonlight-noir`, mensaje en español, distinguiendo que el arreglo es propio del fork y no viene de upstream.
 - [x] 6.2 Anotar en el cambio qué quedó fuera a propósito: los lanzamientos `.art` que solo llevan UUID dejan de refrescar su entrada, y resolver el id contra el servidor es trabajo aparte.

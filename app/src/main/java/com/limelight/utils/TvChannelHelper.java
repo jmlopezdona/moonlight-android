@@ -78,6 +78,12 @@ public class TvChannelHelper {
             if (channelId != null) {
                 context.getContentResolver().update(TvContract.buildChannelUri(channelId),
                         builder.toContentValues(), null, null);
+
+                // An older version of the app could write entries keyed by a sentinel app
+                // ID. They render without box art and nothing ever removes them, so sweep
+                // them here: this runs on each launch and on each new pairing, and never
+                // on the computer poll, which the channel API would throttle.
+                removeProgramsWithoutValidAppId(channelId);
                 return;
             }
 
@@ -134,6 +140,14 @@ public class TvChannelHelper {
                 return;
             }
 
+            // The entry is keyed by the numeric app ID and its box art is stored under it,
+            // so an entry we can't key is worse than no entry: every later launch without
+            // an ID would re-title that same one. This covers both sentinels in use,
+            // StreamConfiguration.INVALID_APP_ID (0) and ShortcutTrampoline's -1.
+            if (app.getAppId() <= 0) {
+                LimeLog.warning("Not adding \"" + app.getAppName() + "\" to the TV channel: no usable app ID");
+                return;
+            }
 
             Long channelId = getChannelId(computer.uuid);
             if (channelId == null) {
@@ -260,6 +274,49 @@ public class TvChannelHelper {
             }
 
             return null;
+        }
+    }
+
+    // Removes the entries this app wrote into one of its own channels with an app ID we
+    // can no longer recognize. Only programs of the given channel are looked at, and the
+    // channel was located by the computer UUID, so entries of other apps are out of reach.
+    @TargetApi(Build.VERSION_CODES.O)
+    private void removeProgramsWithoutValidAppId(long channelId) {
+        try (Cursor cursor = context.getContentResolver().query(
+                TvContract.buildPreviewProgramsUriForChannel(channelId),
+                new String[] {TvContract.PreviewPrograms._ID, TvContract.PreviewPrograms.COLUMN_INTERNAL_PROVIDER_ID},
+                null,
+                null,
+                null)) {
+            if (cursor == null) {
+                return;
+            }
+            while (cursor.moveToNext()) {
+                if (isValidAppId(cursor.getString(INTERNAL_PROVIDER_ID_INDEX))) {
+                    continue;
+                }
+
+                long programId = cursor.getLong(ID_INDEX);
+                if (context.getContentResolver().delete(TvContract.buildPreviewProgramUri(programId), null, null) > 0) {
+                    LimeLog.info("Removed a preview program with no valid app ID");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            // This can happen on HarmonyOS devices which report to
+            // support Leanback APIs, yet don't implement this URI
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean isValidAppId(String internalProviderId) {
+        if (internalProviderId == null) {
+            return false;
+        }
+
+        try {
+            return Integer.parseInt(internalProviderId) > 0;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 

@@ -441,9 +441,21 @@ public class ShortcutTrampoline extends AppCompatActivity {
         if (validateAppInput(appUUID, appIDStr, appName)) {
             // If app data came from .art file or was determined by appNameString from extras
             if (appUUID != null && !appUUID.isEmpty()) {
+                // The UUID is what we connect with, but the numeric App ID is still needed
+                // downstream: the TV channel entry is keyed by it and its box art is stored
+                // under it. Keep it whenever the launch carries it, and only fall back to
+                // the sentinel when it is really absent.
+                int appID = -1;
+                if (appIDStr != null && !appIDStr.isEmpty()) {
+                    try {
+                        appID = Integer.parseInt(appIDStr);
+                    } catch (NumberFormatException e) {
+                        Log.w(TAG, "Ignoring unparsable app ID: " + appIDStr);
+                    }
+                }
                 app = new NvApp(appName, // appName can be null if only UUID is provided
                         appUUID,
-                        -1, // App ID is not strictly needed if UUID is present
+                        appID,
                         getIntent().getBooleanExtra(Game.EXTRA_APP_HDR, false)); // HDR info still from intent
             } else if (appIDStr != null && !appIDStr.isEmpty()) {
                 int appID = Integer.parseInt(appIDStr);
