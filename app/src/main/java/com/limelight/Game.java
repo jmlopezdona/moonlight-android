@@ -4194,11 +4194,33 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public void toggleHUD() {
         prefConfig.enablePerfOverlay = !prefConfig.enablePerfOverlay;
+        updatePerformanceOverlayVisibility();
+    }
+
+    // Select+D-pad Up asks for the full overlay, Select+D-pad Down for the lite one.
+    // Requesting the mode that's already on screen hides the overlay instead.
+    @Override
+    public void togglePerformanceOverlay(boolean lite) {
+        if (prefConfig.enablePerfOverlay && prefConfig.enablePerfOverlayLite == lite) {
+            prefConfig.enablePerfOverlay = false;
+        } else {
+            prefConfig.enablePerfOverlay = true;
+            prefConfig.enablePerfOverlayLite = lite;
+        }
+        updatePerformanceOverlayVisibility();
+    }
+
+    private void updatePerformanceOverlayVisibility() {
         if (prefConfig.enablePerfOverlay) {
             performanceOverlayView.setVisibility(View.VISIBLE);
-            if(prefConfig.enablePerfOverlayLite){
+            if (prefConfig.enablePerfOverlayLite) {
+                performanceOverlayBig.setVisibility(View.GONE);
                 performanceOverlayLite.setVisibility(View.VISIBLE);
-            }else{
+                if (prefConfig.enablePerfOverlayLiteDialog) {
+                    performanceOverlayLite.setOnClickListener(v -> showGameMenu(null));
+                }
+            } else {
+                performanceOverlayLite.setVisibility(View.GONE);
                 performanceOverlayBig.setVisibility(View.VISIBLE);
             }
         } else {

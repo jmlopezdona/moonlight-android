@@ -1771,6 +1771,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             }
         }
 
+        handlePerfOverlayCombo(context);
+
         sendControllerInputPacket(context);
     }
 
@@ -2695,6 +2697,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             }
         }
 
+        handlePerfOverlayCombo(context);
+
         sendControllerInputPacket(context);
 
         if (context.pendingExit && context.inputMap == 0) {
@@ -2703,6 +2707,32 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
 
         return true;
+    }
+
+    // Select+D-pad Up toggles the full performance overlay and Select+D-pad Down toggles the
+    // lite one. We swallow the D-pad press so the game doesn't see it, but leave Select alone
+    // since the user is holding it anyway. Clearing the D-pad flags is safe because both the
+    // key and hat paths rebuild them from scratch on every input report.
+    private void handlePerfOverlayCombo(InputDeviceContext context) {
+        boolean liteRequested;
+
+        if (context.inputMap == (ControllerPacket.BACK_FLAG | ControllerPacket.UP_FLAG)) {
+            liteRequested = false;
+        }
+        else if (context.inputMap == (ControllerPacket.BACK_FLAG | ControllerPacket.DOWN_FLAG)) {
+            liteRequested = true;
+        }
+        else {
+            context.perfOverlayComboActive = false;
+            return;
+        }
+
+        context.inputMap &= ~(ControllerPacket.UP_FLAG | ControllerPacket.DOWN_FLAG);
+
+        if (!context.perfOverlayComboActive) {
+            context.perfOverlayComboActive = true;
+            gestures.togglePerformanceOverlay(liteRequested);
+        }
     }
 
     public boolean handleButtonDown(KeyEvent event) {
@@ -2932,6 +2962,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 }
             }
         }
+
+        handlePerfOverlayCombo(context);
 
         // We don't need to send repeat key down events, but the platform
         // sends us events that claim to be repeats but they're from different
@@ -3187,6 +3219,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public long startDownTime = 0;
         public long startUpTime = 0;
         public boolean backMenuPending = false;
+
+        // Set while a Select+D-pad performance overlay combo is held down, so we only
+        // toggle the overlay once per press instead of on every input report.
+        public boolean perfOverlayComboActive = false;
 
         public final Runnable batteryStateUpdateRunnable = new Runnable() {
             @Override
