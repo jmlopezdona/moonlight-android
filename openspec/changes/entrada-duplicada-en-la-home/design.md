@@ -140,7 +140,15 @@ Anotado al implementar, para que no se lea como un descuido:
 ## Estado de la verificación
 
 Comprobado en la Shield del salón sobre **Diana** (`com.limelight.noirdebug`), que es el
-paquete donde se observó el fallo — `com.limelight.noir` no está instalado en el aparato:
-la entrada gris desapareció del canal, lanzar desde la home no duplica, y un segundo
-lanzamiento no crea ni re-titula ningún recuadro. Quedan sin comprobar el caso del PC
-apagado y el lanzamiento desde la lista de apps de dentro de la app.
+paquete donde se observó el fallo — `com.limelight.noir` no está instalado en el aparato.
+La entrada gris desapareció del canal; lanzar desde la home no duplica; un segundo
+lanzamiento no crea ni re-titula ningún recuadro; y lanzar desde la lista de apps de
+dentro de la app tampoco duplica.
+
+Con una salvedad en el caso del PC apagado: el lanzamiento lo despertó por Wake-on-LAN y
+acabó conectando, así que lo comprobado ahí es que no duplica, no la rama en la que el
+lanzamiento **no llega a conectar**. Esa rama no se ha llegado a ejercitar en la tele.
+Sobre el papel se comporta igual: `reportGameLaunched()` se llama en `Game.onCreate()`
+antes de saber si la conexión prospera, así que un lanzamiento fallido refresca la entrada
+del juego —que ya existía, porque se lanzó desde ella— sin añadir ninguna nueva, que es lo
+que pide el requisito.

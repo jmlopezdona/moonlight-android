@@ -27,8 +27,8 @@
 - [x] 5.1 Abrir la app una vez y comprobar en la home que la entrada gris sin carátula ha desaparecido del canal, y que las demás siguen con la suya.
 - [x] 5.2 Lanzar un juego desde su entrada de la home y comprobar que sigue habiendo **una sola** entrada de ese juego, con carátula.
 - [x] 5.3 Lanzar un segundo juego desde la home y comprobar que no aparece ningún recuadro nuevo ni se re-titula ninguno — es el síntoma que delataba el fallo.
-- [ ] 5.4 Con el PC apagado, lanzar un juego desde la home y comprobar que el canal no gana ninguna entrada pese a que el lanzamiento no llega a conectar.
-- [ ] 5.5 Lanzar un juego desde la lista de apps de dentro de la app y comprobar que su entrada se actualiza, no se duplica.
+- [x] 5.4 Con el PC apagado, lanzar un juego desde la home y comprobar que el canal no gana ninguna entrada pese a que el lanzamiento no llega a conectar.
+- [x] 5.5 Lanzar un juego desde la lista de apps de dentro de la app y comprobar que su entrada se actualiza, no se duplica.
 
 ## 6. Cerrar
 
